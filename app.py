@@ -11,6 +11,7 @@ from bson.errors import InvalidId
 
 app = Flask(__name__)
 
+
 mongo = MongoClient(os.environ["MONGO_URL"])
 db = mongo["ticketflash"]
 cache = redis.Redis.from_url(os.environ["REDIS_URL"], decode_responses=True)
@@ -97,6 +98,44 @@ def remover_evento(id):
     if not resultado or resultado.deleted_count == 0:
         return jsonify(erro="evento não encontrado"), 404
     return jsonify(mensagem="evento removido")
+
+
+@app.get("/relatorios/faturamento")
+def faturamento_por_evento():
+    pipeline = [
+        {"$match": {"status": "confirmado"}},
+        {"$group": {"_id": "$eventoId", "faturamento": {"$sum": "$valorTotal"}}},
+        {"$lookup": {"from": "eventos", "localField": "_id",
+                     "foreignField": "_id", "as": "evento"}},
+        {"$unwind": "$evento"},
+        {"$project": {"_id": 0, "eventoId": {"$toString": "$_id"},
+                      "nome": "$evento.nome", "faturamento": 1}},
+        {"$sort": {"faturamento": -1}},
+    ]
+    return jsonify(list(db.pedidos.aggregate(pipeline)))
+
+
+@app.get("/relatorios/ocupacao/<id>")
+def ocupacao_por_setor(id):
+    _id = converter_id(id)
+    pipeline = [
+        {"$match": {"_id": _id}},
+        {"$unwind": "$setores"},
+        {"$project": {
+            "_id": 0,
+            "setor": "$setores.nome",
+            "vendidos": "$setores.vendidos",
+            "capacidade": "$setores.capacidade",
+            "percentualVendido": {"$round": [
+                {"$multiply": [
+                    {"$divide": ["$setores.vendidos", "$setores.capacidade"]},
+                    100]}, 2]},
+        }},
+    ]
+    resultado = list(db.eventos.aggregate(pipeline)) if _id else []
+    if not resultado:
+        return jsonify(erro="evento não encontrado"), 404
+    return jsonify(resultado)
 
 
 if __name__ == "__main__":
