@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import json
 
 import redis
 from flask import Flask, jsonify, request
@@ -72,11 +73,22 @@ def listar_eventos():
 
 @app.get("/eventos/<id>")
 def buscar_evento(id):
+    chave = f"evento:{id}"
+    em_cache = cache.get(chave)
+    if em_cache:
+        evento = json.loads(em_cache)
+        evento["origem"] = "cache"
+        return jsonify(evento)
+
     _id = converter_id(id)
     evento = db.eventos.find_one({"_id": _id}) if _id else None
     if not evento:
         return jsonify(erro="evento não encontrado"), 404
-    return jsonify(serializar(evento))
+
+    evento = serializar(evento)
+    cache.set(chave, json.dumps(evento), ex=60)
+    evento["origem"] = "banco"
+    return jsonify(evento)
 
 
 @app.put("/eventos/<id>")
