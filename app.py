@@ -171,6 +171,13 @@ def criar_reserva():
         return jsonify(erro=f"campos obrigatórios: {faltando}"), 400
     if not isinstance(dados["quantidade"], int) or dados["quantidade"] < 1:
         return jsonify(erro="quantidade deve ser um inteiro maior que 0"), 400
+    
+    limite = f"limite:reserva:{dados['usuarioId']}"
+    tentativas = cache.incr(limite)
+    if tentativas == 1:
+        cache.expire(limite, 60)
+    if tentativas > 10:
+        return jsonify(erro="limite de 10 reservas por minuto excedido"), 429
 
     _id = converter_id(dados["eventoId"])
     evento = db.eventos.find_one({"_id": _id}) if _id else None
