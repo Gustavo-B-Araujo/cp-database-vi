@@ -71,11 +71,18 @@ def listar_eventos():
     return jsonify([serializar(e) for e in db.eventos.find(filtro)])
 
 
+@app.get("/eventos/ranking")
+def ranking():
+    top = cache.zrevrange("ranking:eventos", 0, 4, withscores=True)
+    return jsonify([{"eventoId": e, "visualizacoes": int(s)} for e, s in top])
+
+
 @app.get("/eventos/<id>")
 def buscar_evento(id):
     chave = f"evento:{id}"
     em_cache = cache.get(chave)
     if em_cache:
+        cache.zincrby("ranking:eventos", 1, id)
         evento = json.loads(em_cache)
         evento["origem"] = "cache"
         return jsonify(evento)
@@ -86,6 +93,7 @@ def buscar_evento(id):
         return jsonify(erro="evento não encontrado"), 404
 
     evento = serializar(evento)
+    cache.zincrby("ranking:eventos", 1, id)
     cache.set(chave, json.dumps(evento), ex=60)
     evento["origem"] = "banco"
     return jsonify(evento)
