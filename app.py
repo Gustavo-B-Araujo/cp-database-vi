@@ -201,5 +201,59 @@ def criar_reserva():
     return jsonify(reserva=chave, expiraEmSegundos=600), 201
 
 
+@app.post("/pedidos/confirmar")
+def confirmar_pedido():
+    dados = request.get_json()
+    faltando = [c for c in ["usuarioId", "eventoId", "setor"] if c not in dados]
+    if faltando:
+        return jsonify(erro=f"campos obrigatórios: {faltando}"), 400
+
+    chave = f"reserva:{dados['eventoId']}:{dados['setor']}:{dados['usuarioId']}"
+    reserva = cache.get(chave)
+    if not reserva:
+        return jsonify(erro="reserva expirada ou inexistente"), 410
+    quantidade = json.loads(reserva)["quantidade"]
+
+    evento_id = converter_id(dados["eventoId"])
+    usuario_id = converter_id(dados["usuarioId"])
+    if not usuario_id:
+        return jsonify(erro="usuarioId inválido"), 400
+    evento = db.eventos.find_one({"_id": evento_id}) if evento_id else None
+    if not evento:
+        return jsonify(erro="evento não encontrado"), 404
+
+    setor = None
+    for s in evento["setores"]:
+        if s["nome"] == dados["setor"]:
+            setor = s
+    if not setor:
+        return jsonify(erro="setor não encontrado"), 404
+
+    resultado = db.eventos.update_one(
+        {"_id": evento_id,
+         "setores": {"$elemMatch": {
+             "nome": dados["setor"],
+             "vendidos": {"$lte": setor["capacidade"] - quantidade},
+         }}},
+        {"$inc": {"setores.$.vendidos": quantidade}},
+    )
+    if resultado.matched_count == 0:
+        return jsonify(erro="sem vagas no setor"), 409
+
+    pedido = {
+        "usuarioId": usuario_id,
+        "eventoId": evento_id,
+        "setor": dados["setor"],
+        "quantidade": quantidade,
+        "valorTotal": setor["preco"] * quantidade,
+        "status": "confirmado",
+        "criadoEm": datetime.now(),
+    }
+    db.pedidos.insert_one(pedido)
+    cache.delete(chave)
+    cache.delete(f"evento:{dados['eventoId']}")
+    return jsonify(mensagem="pedido confirmado", valorTotal=pedido["valorTotal"]), 201
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
