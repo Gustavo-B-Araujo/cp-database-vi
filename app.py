@@ -14,6 +14,9 @@ app = Flask(__name__)
 mongo = MongoClient(os.environ["MONGO_URL"])
 db = mongo["ticketflash"]
 cache = redis.Redis.from_url(os.environ["REDIS_URL"], decode_responses=True)
+db.usuarios.create_index("email", unique=True)
+db.eventos.create_index([("categoria", 1), ("data", 1)])
+db.pedidos.create_index("usuarioId")
 
 
 @app.get("/health")
