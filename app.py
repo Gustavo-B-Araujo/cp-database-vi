@@ -108,6 +108,7 @@ def atualizar_evento(id):
     resultado = db.eventos.update_one({"_id": _id}, {"$set": dados}) if _id else None
     if not resultado or resultado.matched_count == 0:
         return jsonify(erro="evento não encontrado"), 404
+    cache.delete(f"evento:{id}")
     return jsonify(mensagem="evento atualizado")
 
 
@@ -117,6 +118,7 @@ def remover_evento(id):
     resultado = db.eventos.delete_one({"_id": _id}) if _id else None
     if not resultado or resultado.deleted_count == 0:
         return jsonify(erro="evento não encontrado"), 404
+    cache.delete(f"evento:{id}")
     return jsonify(mensagem="evento removido")
 
 
