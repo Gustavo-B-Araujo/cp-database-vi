@@ -2,6 +2,7 @@ import os
 import random
 from datetime import datetime, timedelta
 
+from bson import ObjectId
 from pymongo import MongoClient
 
 random.seed(42)
@@ -31,6 +32,7 @@ eventos = []
 for i, nome in enumerate(NOMES_EVENTOS):
     cidade, endereco = CIDADES[i % len(CIDADES)]
     eventos.append({
+        "_id": ObjectId(f"{i + 1:024x}"),
         "nome": nome,
         "categoria": CATEGORIAS[i % len(CATEGORIAS)],
         "data": hoje + timedelta(days=15 * (i + 1)),
@@ -47,6 +49,7 @@ ids_eventos = db.eventos.insert_many(eventos).inserted_ids
 usuarios = []
 for i in range(20):
     usuarios.append({
+        "_id": ObjectId(f"{i + 1:024x}"),
         "nome": f"Usuario {i + 1}",
         "email": f"usuario{i + 1}@email.com",
         "cidade": CIDADES[i % len(CIDADES)][0],

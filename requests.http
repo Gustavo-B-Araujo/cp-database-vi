@@ -1,0 +1,68 @@
+@host = http://localhost:5000
+@eventoId = 000000000000000000000001
+@usuarioId = 000000000000000000000001
+
+### Saúde da API
+GET {{host}}/health
+
+### 1. Listar eventos
+GET {{host}}/eventos
+
+### 2. Listar com filtro
+GET {{host}}/eventos?categoria=show&cidade=São Paulo
+
+### 3. Criar evento
+# @name criar
+POST {{host}}/eventos
+Content-Type: application/json
+
+{
+  "nome": "Evento de Teste",
+  "categoria": "show",
+  "data": "2026-12-20T20:00:00",
+  "local": {"cidade": "Santos", "endereco": "Rua A, 1"},
+  "atracoes": ["Banda X"],
+  "setores": [{"nome": "pista", "preco": 100, "capacidade": 100}]
+}
+
+### 4. Buscar evento (1ª vez: banco, 2ª vez: cache)
+GET {{host}}/eventos/{{eventoId}}
+
+### 5. Atualizar evento (invalida o cache)
+PUT {{host}}/eventos/{{criar.response.body.id}}
+Content-Type: application/json
+
+{"nome": "Evento de Teste Atualizado"}
+
+### 6. Remover evento
+DELETE {{host}}/eventos/{{criar.response.body.id}}
+
+### 7. Ranking dos mais vistos
+GET {{host}}/eventos/ranking
+
+### 8. Relatório: faturamento por evento
+GET {{host}}/relatorios/faturamento
+
+### 9. Relatório: ocupação por setor
+GET {{host}}/relatorios/ocupacao/{{eventoId}}
+
+### 10. Criar reserva (envie 11 vezes seguidas para ver o 429)
+POST {{host}}/reservas
+Content-Type: application/json
+
+{
+  "usuarioId": "{{usuarioId}}",
+  "eventoId": "{{eventoId}}",
+  "setor": "pista",
+  "quantidade": 2
+}
+
+### 11. Confirmar pedido (2ª vez: 410, reserva já usada ou expirada)
+POST {{host}}/pedidos/confirmar
+Content-Type: application/json
+
+{
+  "usuarioId": "{{usuarioId}}",
+  "eventoId": "{{eventoId}}",
+  "setor": "pista"
+}
