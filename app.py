@@ -160,5 +160,39 @@ def ocupacao_por_setor(id):
     return jsonify(resultado)
 
 
+CAMPOS_RESERVA = ["usuarioId", "eventoId", "setor", "quantidade"]
+
+
+@app.post("/reservas")
+def criar_reserva():
+    dados = request.get_json()
+    faltando = [c for c in CAMPOS_RESERVA if c not in dados]
+    if faltando:
+        return jsonify(erro=f"campos obrigatórios: {faltando}"), 400
+    if not isinstance(dados["quantidade"], int) or dados["quantidade"] < 1:
+        return jsonify(erro="quantidade deve ser um inteiro maior que 0"), 400
+
+    _id = converter_id(dados["eventoId"])
+    evento = db.eventos.find_one({"_id": _id}) if _id else None
+    if not evento:
+        return jsonify(erro="evento não encontrado"), 404
+
+    setor = None
+    for s in evento["setores"]:
+        if s["nome"] == dados["setor"]:
+            setor = s
+    if not setor:
+        return jsonify(erro="setor não encontrado"), 404
+    if setor["capacidade"] - setor["vendidos"] < dados["quantidade"]:
+        return jsonify(erro="sem vagas no setor"), 409
+
+    chave = f"reserva:{dados['eventoId']}:{dados['setor']}:{dados['usuarioId']}"
+    valor = json.dumps({"quantidade": dados["quantidade"]})
+    criada = cache.set(chave, valor, nx=True, ex=600)
+    if not criada:
+        return jsonify(erro="já existe uma reserva ativa neste setor"), 409
+    return jsonify(reserva=chave, expiraEmSegundos=600), 201
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
