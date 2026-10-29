@@ -11,6 +11,8 @@
 
 Requisitos: Docker com Compose v2.
 
+**1. Subir a aplicação e popular o banco** (obrigatório antes de testar):
+
 ```bash
 docker compose up --build -d
 docker compose run --rm api python seed.py
@@ -19,7 +21,10 @@ docker compose run --rm api python seed.py
 A API fica em `http://localhost:5000`. O `seed.py` popula o banco com 10 eventos,
 20 usuários e 50 pedidos, e pode ser executado de novo a qualquer momento.
 
-As requisições estão em `docs/requests.http` (extensão REST Client do VS Code).
+**2. Testar as requisições:** importe a coleção
+[`collection/ticketflash.postman_collection.json`](collection/ticketflash.postman_collection.json)
+no Postman ou no Insomnia. Ela traz todas as requisições com os ids do seed já preenchidos
+(variáveis `host`, `eventoId` e `usuarioId`), então basta enviá-las.
 
 ## Endpoints
 

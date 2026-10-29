@@ -1,0 +1,158 @@
+{
+  "info": {
+    "name": "TicketFlash",
+    "description": "Requisições da API TicketFlash. Pré-requisito: docker compose up --build -d e docker compose run --rm api python seed.py.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "host", "value": "http://localhost:5000" },
+    { "key": "eventoId", "value": "000000000000000000000001" },
+    { "key": "usuarioId", "value": "000000000000000000000001" },
+    { "key": "novoEventoId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Fluxo principal",
+      "item": [
+        {
+          "name": "1. Saúde da API",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/health", "host": ["{{host}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "2. Buscar evento (1ª vez: banco, 2ª vez: cache)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/eventos/{{eventoId}}", "host": ["{{host}}"], "path": ["eventos", "{{eventoId}}"] }
+          }
+        },
+        {
+          "name": "3. Atualizar evento (invalida o cache)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Rock in Sampa - Edicao Especial\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{host}}/eventos/{{eventoId}}", "host": ["{{host}}"], "path": ["eventos", "{{eventoId}}"] }
+          }
+        },
+        {
+          "name": "4. Criar reserva (11 envios seguidos: 429 no último)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"eventoId\": \"{{eventoId}}\",\n  \"setor\": \"pista\",\n  \"quantidade\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{host}}/reservas", "host": ["{{host}}"], "path": ["reservas"] }
+          }
+        },
+        {
+          "name": "4/5. Confirmar pedido (sem reserva ativa: 410)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"eventoId\": \"{{eventoId}}\",\n  \"setor\": \"pista\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{host}}/pedidos/confirmar", "host": ["{{host}}"], "path": ["pedidos", "confirmar"] }
+          }
+        },
+        {
+          "name": "7. Ranking dos mais vistos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/eventos/ranking", "host": ["{{host}}"], "path": ["eventos", "ranking"] }
+          }
+        },
+        {
+          "name": "7. Relatório: faturamento por evento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/relatorios/faturamento", "host": ["{{host}}"], "path": ["relatorios", "faturamento"] }
+          }
+        },
+        {
+          "name": "7. Relatório: ocupação por setor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/relatorios/ocupacao/{{eventoId}}", "host": ["{{host}}"], "path": ["relatorios", "ocupacao", "{{eventoId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "CRUD de eventos",
+      "item": [
+        {
+          "name": "Listar eventos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/eventos", "host": ["{{host}}"], "path": ["eventos"] }
+          }
+        },
+        {
+          "name": "Listar eventos com filtro (categoria e cidade)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/eventos?categoria=show&cidade=São Paulo",
+              "host": ["{{host}}"],
+              "path": ["eventos"],
+              "query": [
+                { "key": "categoria", "value": "show" },
+                { "key": "cidade", "value": "São Paulo" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Criar evento (guarda o id em novoEventoId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.collectionVariables.set(\"novoEventoId\", pm.response.json().id);"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Evento de Teste\",\n  \"categoria\": \"show\",\n  \"data\": \"2026-12-20T20:00:00\",\n  \"local\": {\"cidade\": \"Santos\", \"endereco\": \"Rua A, 1\"},\n  \"atracoes\": [\"Banda X\"],\n  \"setores\": [{\"nome\": \"pista\", \"preco\": 100, \"capacidade\": 100}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{host}}/eventos", "host": ["{{host}}"], "path": ["eventos"] }
+          }
+        },
+        {
+          "name": "Remover evento criado (usa novoEventoId)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{host}}/eventos/{{novoEventoId}}", "host": ["{{host}}"], "path": ["eventos", "{{novoEventoId}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}
